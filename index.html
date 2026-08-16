@@ -441,15 +441,6 @@
     return out;
   }
 
-  function bytesToBase64(bytes) {
-    let binary = "";
-    const chunkSize = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-    }
-    return btoa(binary);
-  }
-
   /* ---------------- XLSX XML building ---------------- */
   function colLetter(n) {
     let s = "";
@@ -863,17 +854,19 @@
 
   const downloadArea = document.getElementById("downloadArea");
   const MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  let lastObjectUrl = null;
 
   function offerDownload(bytes, filename) {
-    const dataUri = `data:${MIME};base64,${bytesToBase64(bytes)}`;
+    if (lastObjectUrl) URL.revokeObjectURL(lastObjectUrl);
+    const blob = new Blob([bytes], { type: MIME });
+    const url = URL.createObjectURL(blob);
+    lastObjectUrl = url;
 
     downloadArea.innerHTML = "";
     const link = document.createElement("a");
     link.className = "download-link";
-    link.href = dataUri;
+    link.href = url;
     link.download = filename;
-    link.target = "_blank";
-    link.rel = "noopener";
     link.textContent = `⬇ ${filename}`;
     downloadArea.appendChild(link);
 
@@ -881,7 +874,8 @@
     hint.className = "download-hint";
     hint.innerHTML =
       "この画面ではボタンを押しただけでは自動保存されないことがあります。<br>" +
-      "上のリンクを<strong>右クリック（Macは control+クリック）</strong>し、「名前を付けてリンク先を保存」を選んで保存してください。";
+      "パソコンでは上のリンクを<strong>右クリック（Macは control+クリック）</strong>し、「名前を付けてリンク先を保存」を選んでください。<br>" +
+      "iPhone・iPadでは上のリンクを<strong>長押し</strong>し、「リンク先のファイルをダウンロード」を選んでください。";
     downloadArea.appendChild(hint);
 
     // Attempt an automatic click; if the surrounding page blocks
