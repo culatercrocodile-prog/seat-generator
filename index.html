@@ -1,0 +1,895 @@
+<meta charset="utf-8" />
+<title>座席表ジェネレーター</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #eff3ee;
+    --surface: #ffffff;
+    --surface-2: #e4eae2;
+    --border: #c9d3c6;
+    --text: #1b2a20;
+    --text-muted: #55665a;
+    --accent: #2e6f4e;
+    --accent-strong: #1f5a3d;
+    --accent-contrast: #ffffff;
+    --seat-fill: #d7ecdd;
+    --seat-empty: #e7e1d2;
+    --seat-empty-line: #cfc6ac;
+    --danger: #b3492f;
+    --danger-bg: #f7e7e1;
+    --shadow: 0 1px 2px rgba(27, 42, 32, 0.07), 0 10px 26px rgba(27, 42, 32, 0.08);
+    --font-display: "Hiragino Maru Gothic ProN", "BIZ UDGothic", "Yu Gothic UI", "Noto Sans JP", system-ui, sans-serif;
+    --font-body: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, -apple-system, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Consolas", "Noto Sans Mono JP", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16211a;
+      --surface: #1d2b22;
+      --surface-2: #24352a;
+      --border: #35473c;
+      --text: #e9f1ea;
+      --text-muted: #9db0a2;
+      --accent: #6fcb9f;
+      --accent-strong: #8fe0b7;
+      --accent-contrast: #12261b;
+      --seat-fill: #2c4a38;
+      --seat-empty: #362f22;
+      --seat-empty-line: #4a4130;
+      --danger: #e2836a;
+      --danger-bg: #3a241e;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 26px rgba(0, 0, 0, 0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16211a;
+    --surface: #1d2b22;
+    --surface-2: #24352a;
+    --border: #35473c;
+    --text: #e9f1ea;
+    --text-muted: #9db0a2;
+    --accent: #6fcb9f;
+    --accent-strong: #8fe0b7;
+    --accent-contrast: #12261b;
+    --seat-fill: #2c4a38;
+    --seat-empty: #362f22;
+    --seat-empty-line: #4a4130;
+    --danger: #e2836a;
+    --danger-bg: #3a241e;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 26px rgba(0, 0, 0, 0.4);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 40px 20px 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .hero { display: flex; flex-direction: column; gap: 10px; padding: 4px 4px 8px; }
+  .eyebrow {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-strong);
+    font-weight: 600;
+  }
+  .hero h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(26px, 5vw, 34px);
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .lede { margin: 0; max-width: 58ch; color: var(--text-muted); font-size: 15px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 22px 24px;
+    box-shadow: var(--shadow);
+  }
+  .card h2 {
+    margin: 0 0 14px;
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .card h2 .hint { font-weight: 500; color: var(--text-muted); font-size: 13px; margin-left: 6px; }
+
+  .field-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px 16px;
+  }
+  .field-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  input[type="number"], select {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 15px;
+    color: var(--text);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 10px;
+    outline: none;
+  }
+  select { font-family: var(--font-body); }
+  input[type="number"]:focus-visible, select:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .status {
+    margin: 16px 2px 0;
+    font-size: 13.5px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .status::before {
+    content: "";
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent);
+    flex: none;
+  }
+  .status.is-error { color: var(--danger); }
+  .status.is-error::before { background: var(--danger); }
+
+  .preview-card { padding-bottom: 20px; }
+  #previewWrap { display: flex; flex-direction: column; gap: 10px; }
+  .podium-bar {
+    background: var(--accent);
+    color: var(--accent-contrast);
+    text-align: center;
+    font-weight: 700;
+    font-size: 12.5px;
+    letter-spacing: 0.08em;
+    border-radius: 8px;
+    padding: 7px 0;
+  }
+  .seat-grid {
+    display: grid;
+    gap: 5px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  .seat {
+    aspect-ratio: 1 / 1;
+    min-width: 22px;
+    border-radius: 5px;
+    background: var(--seat-fill);
+    border: 1px solid var(--border);
+  }
+  .seat.is-empty {
+    background: repeating-linear-gradient(
+      135deg,
+      var(--seat-empty),
+      var(--seat-empty) 4px,
+      var(--seat-empty-line) 4px,
+      var(--seat-empty-line) 5px
+    );
+    border-style: dashed;
+  }
+  .preview-legend {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  .actions { display: flex; justify-content: center; padding: 4px 0; }
+  .btn-primary {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--accent-contrast);
+    background: var(--accent);
+    border: none;
+    border-radius: 999px;
+    padding: 15px 34px;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+  }
+  .btn-primary:hover { background: var(--accent-strong); }
+  .btn-primary:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+  @media (prefers-reduced-motion: no-preference) {
+    .btn-primary { transition: background 0.15s ease, transform 0.15s ease; }
+    .btn-primary:active:not(:disabled) { transform: scale(0.97); }
+  }
+
+  .download-area { display: flex; justify-content: center; min-height: 0; }
+  .download-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    color: var(--accent-strong);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 16px;
+    text-decoration: none;
+    box-shadow: var(--shadow);
+  }
+  .download-link:hover { text-decoration: underline; }
+  .download-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .download-hint { margin: 8px 0 0; text-align: center; font-size: 12.5px; color: var(--text-muted); }
+
+  .note-card ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+  .note-card li { font-size: 14px; color: var(--text-muted); }
+  .note-card li::marker { color: var(--accent); }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    background: var(--text);
+    color: var(--bg);
+    font-size: 13.5px;
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 999px;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .toast { transition: opacity 0.2s ease, transform 0.2s ease; }
+  }
+  .toast.is-visible { opacity: 1; }
+</style>
+
+<div class="page">
+  <header class="hero">
+    <p class="eyebrow">教室ツール</p>
+    <h1>座席表ジェネレーター</h1>
+    <p class="lede">
+      人数と机の並びを指定すると、生徒目線・教師目線（上下左右反転）・番号対応表の3シートが入った
+      ランダム座席表を Excel ファイル（.xlsx）としてその場で作成します。ボタンを押すたびに新しい抽選結果になります。
+      入力内容はこの画面の中だけで処理され、どこにも送信されません。
+    </p>
+  </header>
+
+  <section class="card" aria-label="配置の設定">
+    <h2>配置を設定</h2>
+    <div class="field-grid">
+      <label>人数
+        <input type="number" id="total" value="41" min="1" />
+      </label>
+      <label>縦（教卓からの列数）
+        <input type="number" id="rows" value="7" min="1" />
+      </label>
+      <label>横（人数）
+        <input type="number" id="cols" value="6" min="1" />
+      </label>
+      <label>人数が少ない列の位置
+        <select id="shortPos">
+          <option value="left">教卓に向かって左端</option>
+          <option value="right">教卓に向かって右端</option>
+        </select>
+      </label>
+      <label>空ける机の位置
+        <select id="missingPos">
+          <option value="front">教卓に近い側から</option>
+          <option value="back">一番後ろから</option>
+        </select>
+      </label>
+    </div>
+    <p class="status" id="statusMsg"></p>
+  </section>
+
+  <section class="card preview-card" aria-label="配置プレビュー">
+    <h2>配置プレビュー<span class="hint">生徒目線・実際の番号はファイル生成時に決まります</span></h2>
+    <div id="previewWrap"></div>
+  </section>
+
+  <div class="actions">
+    <button class="btn-primary" id="generateBtn">この設定でExcelを作成</button>
+  </div>
+  <div class="download-area" id="downloadArea"></div>
+
+  <section class="card note-card">
+    <h2>ファイルの内容</h2>
+    <ul>
+      <li>「生徒用」：教卓に向かって見た並びで、各机にランダムな番号（1〜人数）を表示</li>
+      <li>「教師用」：生徒用シートを上下・左右反転した、教壇から教室を見た並び</li>
+      <li>「番号対応表」：番号ごとの座席位置の一覧。氏名を書き込める欄つき</li>
+      <li>人数が縦×横に満たない分は、指定した列の指定した側から机を減らして調整します</li>
+    </ul>
+  </section>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------------- CRC32 / ZIP (store, no compression) ---------------- */
+  const CRC_TABLE = (function () {
+    const table = [];
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? (0xedb88320 ^ (c >>> 1)) : c >>> 1;
+      table[n] = c >>> 0;
+    }
+    return table;
+  })();
+
+  function crc32(bytes) {
+    let crc = 0xffffffff;
+    for (let i = 0; i < bytes.length; i++) crc = CRC_TABLE[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
+    return (crc ^ 0xffffffff) >>> 0;
+  }
+
+  function buildZipBytes(files) {
+    const encoder = new TextEncoder();
+    const now = new Date();
+    const dosTime = ((now.getHours() & 0x1f) << 11) | ((now.getMinutes() & 0x3f) << 5) | ((now.getSeconds() >> 1) & 0x1f);
+    const dosDate = (((now.getFullYear() - 1980) & 0x7f) << 9) | (((now.getMonth() + 1) & 0xf) << 5) | (now.getDate() & 0x1f);
+
+    const parts = [];
+    const central = [];
+    let offset = 0;
+
+    files.forEach((f) => {
+      const nameBytes = encoder.encode(f.name);
+      const data = f.data instanceof Uint8Array ? f.data : encoder.encode(f.data);
+      const crc = crc32(data);
+      const size = data.length;
+
+      const lh = new Uint8Array(30 + nameBytes.length);
+      const ldv = new DataView(lh.buffer);
+      ldv.setUint32(0, 0x04034b50, true);
+      ldv.setUint16(4, 20, true);
+      ldv.setUint16(6, 0, true);
+      ldv.setUint16(8, 0, true);
+      ldv.setUint16(10, dosTime, true);
+      ldv.setUint16(12, dosDate, true);
+      ldv.setUint32(14, crc, true);
+      ldv.setUint32(18, size, true);
+      ldv.setUint32(22, size, true);
+      ldv.setUint16(26, nameBytes.length, true);
+      ldv.setUint16(28, 0, true);
+      lh.set(nameBytes, 30);
+
+      parts.push(lh, data);
+
+      const ch = new Uint8Array(46 + nameBytes.length);
+      const cdv = new DataView(ch.buffer);
+      cdv.setUint32(0, 0x02014b50, true);
+      cdv.setUint16(4, 20, true);
+      cdv.setUint16(6, 20, true);
+      cdv.setUint16(8, 0, true);
+      cdv.setUint16(10, 0, true);
+      cdv.setUint16(12, dosTime, true);
+      cdv.setUint16(14, dosDate, true);
+      cdv.setUint32(16, crc, true);
+      cdv.setUint32(20, size, true);
+      cdv.setUint32(24, size, true);
+      cdv.setUint16(28, nameBytes.length, true);
+      cdv.setUint16(30, 0, true);
+      cdv.setUint16(32, 0, true);
+      cdv.setUint16(34, 0, true);
+      cdv.setUint16(36, 0, true);
+      cdv.setUint32(38, 0, true);
+      cdv.setUint32(42, offset, true);
+      ch.set(nameBytes, 46);
+      central.push(ch);
+
+      offset += lh.length + data.length;
+    });
+
+    const centralOffset = offset;
+    let centralSize = 0;
+    central.forEach((c) => (centralSize += c.length));
+
+    const eocd = new Uint8Array(22);
+    const edv = new DataView(eocd.buffer);
+    edv.setUint32(0, 0x06054b50, true);
+    edv.setUint16(4, 0, true);
+    edv.setUint16(6, 0, true);
+    edv.setUint16(8, files.length, true);
+    edv.setUint16(10, files.length, true);
+    edv.setUint32(12, centralSize, true);
+    edv.setUint32(16, centralOffset, true);
+    edv.setUint16(20, 0, true);
+
+    const totalLen = [...parts, ...central, eocd].reduce((n, p) => n + p.length, 0);
+    const out = new Uint8Array(totalLen);
+    let pos = 0;
+    [...parts, ...central, eocd].forEach((p) => {
+      out.set(p, pos);
+      pos += p.length;
+    });
+    return out;
+  }
+
+  function bytesToBase64(bytes) {
+    let binary = "";
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
+  }
+
+  /* ---------------- XLSX XML building ---------------- */
+  function colLetter(n) {
+    let s = "";
+    while (n > 0) {
+      const rem = (n - 1) % 26;
+      s = String.fromCharCode(65 + rem) + s;
+      n = Math.floor((n - 1) / 26);
+    }
+    return s;
+  }
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  const STYLE = {
+    default: 0, title: 1, podium: 2, seat: 3, empty: 4,
+    label: 5, note: 6, mapHeader: 7, mapCellCenter: 8, mapCellLeft: 9, guideRight: 10,
+  };
+
+  function SheetModel() {
+    this.rows = {};
+    this.merges = [];
+    this.cols = [];
+    this.maxCol = 1;
+    this.maxRow = 1;
+  }
+  SheetModel.prototype.setRowHeight = function (r, ht) {
+    if (!this.rows[r]) this.rows[r] = { ht: null, cells: [] };
+    this.rows[r].ht = ht;
+  };
+  SheetModel.prototype.cell = function (r, c, style, value, isText) {
+    if (!this.rows[r]) this.rows[r] = { ht: null, cells: [] };
+    this.rows[r].cells.push([c, style, value, !!isText]);
+    if (c > this.maxCol) this.maxCol = c;
+    if (r > this.maxRow) this.maxRow = r;
+  };
+  SheetModel.prototype.merge = function (r1, c1, r2, c2) {
+    this.merges.push(colLetter(c1) + r1 + ":" + colLetter(c2) + r2);
+  };
+  SheetModel.prototype.toXml = function () {
+    const colsXml = this.cols.map((c) => `<col min="${c[0]}" max="${c[1]}" width="${c[2]}" customWidth="1"/>`).join("");
+    const rowNums = Object.keys(this.rows).map(Number).sort((a, b) => a - b);
+    const rowsXml = rowNums
+      .map((r) => {
+        const row = this.rows[r];
+        let attrs = ` r="${r}"`;
+        if (row.ht != null) attrs += ` ht="${row.ht}" customHeight="1"`;
+        const cells = row.cells
+          .slice()
+          .sort((a, b) => a[0] - b[0])
+          .map(([c, style, value, isText]) => {
+            const ref = colLetter(c) + r;
+            if (isText) {
+              return `<c r="${ref}" s="${style}" t="inlineStr"><is><t xml:space="preserve">${esc(value)}</t></is></c>`;
+            }
+            return `<c r="${ref}" s="${style}"><v>${value}</v></c>`;
+          })
+          .join("");
+        return `<row${attrs}>${cells}</row>`;
+      })
+      .join("");
+    const mergesXml = this.merges.length
+      ? `<mergeCells count="${this.merges.length}">` + this.merges.map((m) => `<mergeCell ref="${m}"/>`).join("") + `</mergeCells>`
+      : "";
+    const dim = `A1:${colLetter(this.maxCol)}${this.maxRow}`;
+    return (
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      `<dimension ref="${dim}"/>` +
+      '<sheetViews><sheetView showGridLines="0" workbookViewId="0"/></sheetViews>' +
+      `<cols>${colsXml}</cols>` +
+      `<sheetData>${rowsXml}</sheetData>` +
+      mergesXml +
+      "</worksheet>"
+    );
+  };
+
+  const CONTENT_TYPES =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+    '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+    '<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+    '<Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+    "</Types>";
+
+  const RELS =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+    "</Relationships>";
+
+  const WORKBOOK_RELS =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+    '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>' +
+    '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/>' +
+    '<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+    "</Relationships>";
+
+  const WORKBOOK =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    "<sheets>" +
+    '<sheet name="生徒用（生徒目線）" sheetId="1" r:id="rId1"/>' +
+    '<sheet name="教師用（教師目線）" sheetId="2" r:id="rId2"/>' +
+    '<sheet name="番号対応表" sheetId="3" r:id="rId3"/>' +
+    "</sheets>" +
+    "</workbook>";
+
+  const STYLES =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<fonts count="8">' +
+    "<font><sz val=\"11\"/><name val=\"Arial\"/></font>" +
+    "<font><sz val=\"16\"/><b/><name val=\"Arial\"/></font>" +
+    "<font><sz val=\"14\"/><b/><color rgb=\"FFFFFFFF\"/><name val=\"Arial\"/></font>" +
+    "<font><sz val=\"18\"/><b/><color rgb=\"FF1F1F1F\"/><name val=\"Arial\"/></font>" +
+    "<font><sz val=\"10\"/><i/><color rgb=\"FF9C9C9C\"/><name val=\"Arial\"/></font>" +
+    "<font><sz val=\"10\"/><color rgb=\"FF595959\"/><name val=\"Arial\"/></font>" +
+    "<font><sz val=\"11\"/><b/><color rgb=\"FFFFFFFF\"/><name val=\"Arial\"/></font>" +
+    "<font><sz val=\"10\"/><name val=\"Arial\"/></font>" +
+    "</fonts>" +
+    '<fills count="5">' +
+    '<fill><patternFill patternType="none"/></fill>' +
+    '<fill><patternFill patternType="gray125"/></fill>' +
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFDDEBF7"/><bgColor indexed="64"/></patternFill></fill>' +
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/><bgColor indexed="64"/></patternFill></fill>' +
+    '<fill><patternFill patternType="solid"><fgColor rgb="FF4472C4"/><bgColor indexed="64"/></patternFill></fill>' +
+    "</fills>" +
+    '<borders count="2">' +
+    "<border><left/><right/><top/><bottom/><diagonal/></border>" +
+    '<border><left style="thin"><color rgb="FFB0B0B0"/></left><right style="thin"><color rgb="FFB0B0B0"/></right>' +
+    '<top style="thin"><color rgb="FFB0B0B0"/></top><bottom style="thin"><color rgb="FFB0B0B0"/></bottom><diagonal/></border>' +
+    "</borders>" +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="11">' +
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+    '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>' +
+    '<xf numFmtId="0" fontId="2" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' +
+    '<xf numFmtId="0" fontId="3" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' +
+    '<xf numFmtId="0" fontId="4" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' +
+    '<xf numFmtId="0" fontId="5" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>' +
+    '<xf numFmtId="0" fontId="5" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>' +
+    '<xf numFmtId="0" fontId="6" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>' +
+    '<xf numFmtId="0" fontId="7" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>' +
+    '<xf numFmtId="0" fontId="7" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>' +
+    '<xf numFmtId="0" fontId="5" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>' +
+    "</cellXfs>" +
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+    "</styleSheet>";
+
+  /* ---------------- Layout config / seat model ---------------- */
+  function getConfig() {
+    const total = parseInt(document.getElementById("total").value, 10);
+    const rows = parseInt(document.getElementById("rows").value, 10);
+    const cols = parseInt(document.getElementById("cols").value, 10);
+    const shortPos = document.getElementById("shortPos").value;
+    const missingPos = document.getElementById("missingPos").value;
+    return { total, rows, cols, shortPos, missingPos };
+  }
+
+  function validate(cfg) {
+    const { total, rows, cols, shortPos, missingPos } = cfg;
+    if (!Number.isFinite(total) || !Number.isFinite(rows) || !Number.isFinite(cols) || rows < 1 || cols < 1 || total < 1) {
+      return { ok: false, message: "人数・縦・横には1以上の整数を入力してください。" };
+    }
+    const shortColIndex = shortPos === "left" ? 1 : cols;
+    const missingCount = rows * cols - total;
+    if (missingCount < 0) {
+      return { ok: false, message: `人数が多すぎます。縦${rows}×横${cols}では最大${rows * cols}人までです。` };
+    }
+    if (missingCount >= rows) {
+      return { ok: false, message: "指定した列だけでは調整しきれません。縦・横の人数を見直してください。" };
+    }
+    return { ok: true, shortColIndex, missingCount };
+  }
+
+  function seatExists(shortColIndex, missingCount, missingPos, rows, c, r) {
+    if (c !== shortColIndex || missingCount === 0) return true;
+    if (missingPos === "front") return r > missingCount;
+    return r <= rows - missingCount;
+  }
+
+  function buildAssignment(cfg, v) {
+    const { rows, cols, missingPos, total } = cfg;
+    const { shortColIndex, missingCount } = v;
+    const seats = [];
+    for (let c = 1; c <= cols; c++) {
+      for (let r = 1; r <= rows; r++) {
+        if (seatExists(shortColIndex, missingCount, missingPos, rows, c, r)) seats.push([c, r]);
+      }
+    }
+    const numbers = [];
+    for (let i = 1; i <= total; i++) numbers.push(i);
+    for (let i = numbers.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
+    }
+    const assign = new Map();
+    seats.forEach((seat, i) => assign.set(seat[0] + "," + seat[1], numbers[i]));
+    return assign;
+  }
+
+  function buildGridSheet(cfg, v, assign, title, flipVertical, mirrorHorizontal) {
+    const { rows, cols, total, missingPos } = cfg;
+    const { shortColIndex, missingCount } = v;
+    const m = new SheetModel();
+    m.cols = [[1, 1, 3], [2, cols + 1, 11]];
+    m.setRowHeight(1, 22);
+    m.merge(1, 1, 1, cols + 1);
+    m.cell(1, 1, STYLE.title, title, true);
+
+    const gridStart = 4;
+    let podiumRow, gridTop;
+    if (!flipVertical) {
+      podiumRow = gridStart;
+      gridTop = gridStart + 2;
+    } else {
+      podiumRow = gridStart + rows + 2;
+      gridTop = gridStart;
+    }
+
+    const rowOrder = [];
+    if (!flipVertical) for (let r = 1; r <= rows; r++) rowOrder.push(r);
+    else for (let r = rows; r >= 1; r--) rowOrder.push(r);
+
+    rowOrder.forEach((r, idx) => {
+      const printPos = idx + 1;
+      const excelRow = gridTop + printPos - 1;
+      m.setRowHeight(excelRow, 40);
+      for (let c = 1; c <= cols; c++) {
+        const displayCol = mirrorHorizontal ? cols - c + 1 : c;
+        const excelCol = c + 1;
+        if (seatExists(shortColIndex, missingCount, missingPos, rows, displayCol, r)) {
+          m.cell(excelRow, excelCol, STYLE.seat, assign.get(displayCol + "," + r), false);
+        } else {
+          m.cell(excelRow, excelCol, STYLE.empty, "（机なし）", true);
+        }
+      }
+      m.cell(excelRow, 1, STYLE.label, String(r), true);
+    });
+
+    m.merge(podiumRow, 2, podiumRow, cols + 1);
+    m.cell(podiumRow, 2, STYLE.podium, "教　卓", true);
+    m.setRowHeight(podiumRow, 26);
+
+    const viewer = mirrorHorizontal ? "教壇から見て" : "教卓に向かって";
+    const guideRow = !flipVertical ? gridTop + rows : podiumRow + 2;
+    m.cell(guideRow + 1, 2, STYLE.note, `◀ 左（${viewer}）`, true);
+    m.cell(guideRow + 1, cols + 1, STYLE.guideRight, `右 ▶（${viewer}）`, true);
+
+    const noteRow = guideRow + 3;
+    const posText = `教卓に向かって${shortColIndex === 1 ? "左" : "右"}端の列（${shortColIndex}列目）`;
+    let note2;
+    if (missingCount === 0) {
+      note2 = `※ すべての列が同じ人数（縦${rows}人）の配置です。`;
+    } else {
+      const which = missingPos === "front" ? "先頭" : "末尾";
+      note2 = `※ ${posText}のみ${rows - missingCount}人（教卓に近い側から数えて${which}${missingCount}人分の机なし）としています。`;
+    }
+    const note3 =
+      flipVertical && mirrorHorizontal
+        ? "※ 教師用シートは生徒目線を上下反転・左右反転した向き（教壇から教室を見た向き）で表示しています。"
+        : "※ 教師用シートは教壇から見た向きで同じ座席配置を表示しています。";
+    const notes = [`※ 数字は各生徒にランダムに割り振った座席番号（1～${total}）です。`, note2, note3];
+    notes.forEach((n, i) => {
+      const rr = noteRow + i;
+      m.merge(rr, 1, rr, cols + 1);
+      m.cell(rr, 1, STYLE.note, n, true);
+    });
+
+    return m;
+  }
+
+  function buildMappingSheet(cfg, v, assign) {
+    const { total } = cfg;
+    const m = new SheetModel();
+    m.cols = [[1, 1, 10], [2, 2, 20], [3, 3, 22]];
+    m.merge(1, 1, 1, 3);
+    m.cell(1, 1, STYLE.title, "座席番号 対応表", true);
+
+    ["座席番号", "座席位置（生徒目線）", "氏名（任意で記入）"].forEach((h, i) => {
+      m.cell(3, i + 1, STYLE.mapHeader, h, true);
+    });
+
+    const byNumber = Array.from(assign.entries())
+      .map(([key, num]) => {
+        const [c, r] = key.split(",").map(Number);
+        return { c, r, num };
+      })
+      .sort((a, b) => a.num - b.num);
+
+    byNumber.forEach((seat, i) => {
+      const r = 4 + i;
+      m.cell(r, 1, STYLE.mapCellCenter, seat.num, false);
+      m.cell(r, 2, STYLE.mapCellCenter, `左から${seat.c}列目 / 前から${seat.r}行目`, true);
+      m.cell(r, 3, STYLE.mapCellLeft, "", true);
+    });
+
+    const noteRow = 4 + byNumber.length + 1;
+    m.merge(noteRow, 1, noteRow, 3);
+    m.cell(noteRow, 1, STYLE.note, "※「氏名」欄に出席番号や名前を書き込んで、座席番号との対応表としてお使いください。", true);
+    return m;
+  }
+
+  function buildWorkbookBytes(cfg, v) {
+    const assign = buildAssignment(cfg, v);
+    const sheet1 = buildGridSheet(cfg, v, assign, "座席表（生徒目線）", false, false);
+    const sheet2 = buildGridSheet(cfg, v, assign, "座席表（教師目線・上下左右反転）", true, true);
+    const sheet3 = buildMappingSheet(cfg, v, assign);
+
+    const files = [
+      { name: "[Content_Types].xml", data: CONTENT_TYPES },
+      { name: "_rels/.rels", data: RELS },
+      { name: "xl/workbook.xml", data: WORKBOOK },
+      { name: "xl/_rels/workbook.xml.rels", data: WORKBOOK_RELS },
+      { name: "xl/styles.xml", data: STYLES },
+      { name: "xl/worksheets/sheet1.xml", data: sheet1.toXml() },
+      { name: "xl/worksheets/sheet2.xml", data: sheet2.toXml() },
+      { name: "xl/worksheets/sheet3.xml", data: sheet3.toXml() },
+    ];
+    return buildZipBytes(files);
+  }
+
+  /* ---------------- Preview rendering ---------------- */
+  function renderPreview(cfg, v) {
+    const wrap = document.getElementById("previewWrap");
+    wrap.innerHTML = "";
+
+    const podium = document.createElement("div");
+    podium.className = "podium-bar";
+    podium.textContent = "教卓";
+    wrap.appendChild(podium);
+
+    const grid = document.createElement("div");
+    grid.className = "seat-grid";
+    grid.style.gridTemplateColumns = `repeat(${cfg.cols}, 1fr)`;
+    grid.style.gridTemplateRows = `repeat(${cfg.rows}, 1fr)`;
+    for (let r = 1; r <= cfg.rows; r++) {
+      for (let c = 1; c <= cfg.cols; c++) {
+        const seat = document.createElement("div");
+        const exists = v.ok ? seatExists(v.shortColIndex, v.missingCount, cfg.missingPos, cfg.rows, c, r) : true;
+        seat.className = "seat" + (exists ? "" : " is-empty");
+        grid.appendChild(seat);
+      }
+    }
+    wrap.appendChild(grid);
+
+    const legend = document.createElement("div");
+    legend.className = "preview-legend";
+    legend.innerHTML = "<span>◀ 左（教卓に向かって）</span><span>右 ▶</span>";
+    wrap.appendChild(legend);
+  }
+
+  /* ---------------- Wiring ---------------- */
+  const statusMsg = document.getElementById("statusMsg");
+  const generateBtn = document.getElementById("generateBtn");
+  const toast = document.getElementById("toast");
+  let toastTimer = null;
+
+  function refresh() {
+    const cfg = getConfig();
+    const v = validate(cfg);
+    if (v.ok) {
+      statusMsg.classList.remove("is-error");
+      const shortLabel = v.shortColIndex === 1 ? "左端" : "右端";
+      statusMsg.textContent =
+        v.missingCount === 0
+          ? `縦${cfg.rows}×横${cfg.cols}＝${cfg.rows * cfg.cols}人、全列同じ人数です。`
+          : `教卓に向かって${shortLabel}の列のみ${cfg.rows - v.missingCount}人、他は${cfg.rows}人。合計${cfg.total}人です。`;
+      generateBtn.disabled = false;
+    } else {
+      statusMsg.classList.add("is-error");
+      statusMsg.textContent = v.message;
+      generateBtn.disabled = true;
+    }
+    renderPreview(cfg, v);
+    return { cfg, v };
+  }
+
+  function showToast(message) {
+    toast.textContent = message;
+    toast.classList.add("is-visible");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("is-visible"), 2200);
+  }
+
+  function pad(n) {
+    return String(n).padStart(2, "0");
+  }
+
+  const downloadArea = document.getElementById("downloadArea");
+  const MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+  function offerDownload(bytes, filename) {
+    const dataUri = `data:${MIME};base64,${bytesToBase64(bytes)}`;
+
+    downloadArea.innerHTML = "";
+    const link = document.createElement("a");
+    link.className = "download-link";
+    link.href = dataUri;
+    link.download = filename;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.textContent = `⬇ ${filename}`;
+    downloadArea.appendChild(link);
+
+    const hint = document.createElement("p");
+    hint.className = "download-hint";
+    hint.innerHTML =
+      "この画面ではボタンを押しただけでは自動保存されないことがあります。<br>" +
+      "上のリンクを<strong>右クリック（Macは control+クリック）</strong>し、「名前を付けてリンク先を保存」を選んで保存してください。";
+    downloadArea.appendChild(hint);
+
+    // Attempt an automatic click; if the surrounding page blocks
+    // programmatic activation, the visible link above still works.
+    try {
+      link.click();
+    } catch (e) {
+      /* ignore — the visible link is the guaranteed fallback */
+    }
+  }
+
+  generateBtn.addEventListener("click", () => {
+    const { cfg, v } = refresh();
+    if (!v.ok) return;
+    const bytes = buildWorkbookBytes(cfg, v);
+    const now = new Date();
+    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    offerDownload(bytes, `座席表_ランダム_${cfg.total}人_${stamp}.xlsx`);
+    showToast("Excelファイルを作成しました");
+  });
+
+  ["total", "rows", "cols", "shortPos", "missingPos"].forEach((id) => {
+    document.getElementById(id).addEventListener("input", refresh);
+    document.getElementById(id).addEventListener("change", refresh);
+  });
+
+  refresh();
+})();
+</script>
