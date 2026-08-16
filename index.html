@@ -183,6 +183,14 @@
     border-radius: 5px;
     background: var(--seat-fill);
     border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: clamp(9px, 2.6vw, 13px);
+    color: var(--accent-strong);
   }
   .seat.is-empty {
     background: repeating-linear-gradient(
@@ -307,7 +315,7 @@
   </section>
 
   <section class="card preview-card" aria-label="配置プレビュー">
-    <h2>配置プレビュー<span class="hint">生徒目線・実際の番号はファイル生成時に決まります</span></h2>
+    <h2>配置プレビュー<span class="hint" id="previewHint">生徒目線・実際の番号はファイル生成時に決まります</span></h2>
     <div id="previewWrap"></div>
   </section>
 
@@ -757,8 +765,7 @@
     return m;
   }
 
-  function buildWorkbookBytes(cfg, v) {
-    const assign = buildAssignment(cfg, v);
+  function buildWorkbookBytes(cfg, v, assign) {
     const sheet1 = buildGridSheet(cfg, v, assign, "座席表（生徒目線）", false, false);
     const sheet2 = buildGridSheet(cfg, v, assign, "座席表（教師目線・上下左右反転）", true, true);
     const sheet3 = buildMappingSheet(cfg, v, assign);
@@ -777,7 +784,7 @@
   }
 
   /* ---------------- Preview rendering ---------------- */
-  function renderPreview(cfg, v) {
+  function renderPreview(cfg, v, assign) {
     const wrap = document.getElementById("previewWrap");
     wrap.innerHTML = "";
 
@@ -795,6 +802,10 @@
         const seat = document.createElement("div");
         const exists = v.ok ? seatExists(v.shortColIndex, v.missingCount, cfg.missingPos, cfg.rows, c, r) : true;
         seat.className = "seat" + (exists ? "" : " is-empty");
+        if (exists && assign) {
+          const num = assign.get(c + "," + r);
+          if (num != null) seat.textContent = num;
+        }
         grid.appendChild(seat);
       }
     }
@@ -804,6 +815,13 @@
     legend.className = "preview-legend";
     legend.innerHTML = "<span>◀ 左（教卓に向かって）</span><span>右 ▶</span>";
     wrap.appendChild(legend);
+
+    const previewHint = document.getElementById("previewHint");
+    if (previewHint) {
+      previewHint.textContent = assign
+        ? "生徒目線・直前に作成した結果を表示中"
+        : "生徒目線・実際の番号はファイル生成時に決まります";
+    }
   }
 
   /* ---------------- Wiring ---------------- */
@@ -878,10 +896,12 @@
   generateBtn.addEventListener("click", () => {
     const { cfg, v } = refresh();
     if (!v.ok) return;
-    const bytes = buildWorkbookBytes(cfg, v);
+    const assign = buildAssignment(cfg, v);
+    const bytes = buildWorkbookBytes(cfg, v, assign);
     const now = new Date();
     const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
     offerDownload(bytes, `座席表_ランダム_${cfg.total}人_${stamp}.xlsx`);
+    renderPreview(cfg, v, assign);
     showToast("Excelファイルを作成しました");
   });
 
