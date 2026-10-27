@@ -190,8 +190,10 @@
     font-variant-numeric: tabular-nums;
     font-weight: 700;
     font-size: clamp(9px, 2.6vw, 13px);
+    container-type: size;
     color: var(--accent-strong);
   }
+  .seat > span { font-size: 58cqmin; line-height: 1; }
   .seat.is-empty {
     background: repeating-linear-gradient(
       135deg,
@@ -567,7 +569,7 @@
     "<font><sz val=\"11\"/><name val=\"Arial\"/></font>" +
     "<font><sz val=\"16\"/><b/><name val=\"Arial\"/></font>" +
     "<font><sz val=\"14\"/><b/><color rgb=\"FFFFFFFF\"/><name val=\"Arial\"/></font>" +
-    "<font><sz val=\"18\"/><b/><color rgb=\"FF1F1F1F\"/><name val=\"Arial\"/></font>" +
+    "<font><sz val=\"36\"/><b/><color rgb=\"FF1F1F1F\"/><name val=\"Arial\"/></font>" +
     "<font><sz val=\"10\"/><i/><color rgb=\"FF9C9C9C\"/><name val=\"Arial\"/></font>" +
     "<font><sz val=\"10\"/><color rgb=\"FF595959\"/><name val=\"Arial\"/></font>" +
     "<font><sz val=\"11\"/><b/><color rgb=\"FFFFFFFF\"/><name val=\"Arial\"/></font>" +
@@ -680,7 +682,7 @@
     rowOrder.forEach((r, idx) => {
       const printPos = idx + 1;
       const excelRow = gridTop + printPos - 1;
-      m.setRowHeight(excelRow, 40);
+      m.setRowHeight(excelRow, 56);
       for (let c = 1; c <= cols; c++) {
         const displayCol = mirrorHorizontal ? cols - c + 1 : c;
         const excelCol = c + 1;
@@ -795,7 +797,7 @@
         seat.className = "seat" + (exists ? "" : " is-empty");
         if (exists && assign) {
           const num = assign.get(c + "," + r);
-          if (num != null) seat.textContent = num;
+          if (num != null) { const sp = document.createElement("span"); sp.textContent = num; seat.appendChild(sp); }
         }
         grid.appendChild(seat);
       }
